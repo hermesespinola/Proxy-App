@@ -110,11 +110,9 @@ func (queue BHeap) siftDown(i int) {
 func (queue BHeap) siftUp(i int) {
 	for {
 		parent := (i - 1) / 2
-		fmt.Println("i", i, "parent", parent)
 		if parent == i || queue[parent].Greater(queue[i]) {
 			break
 		} else {
-			fmt.Println("Swap i and parent")
 			queue[i], queue[parent] = queue[parent], queue[i]
 			i = parent
 		}

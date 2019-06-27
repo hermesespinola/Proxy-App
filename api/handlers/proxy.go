@@ -9,4 +9,5 @@ import (
 func HandlerRedirection(app *iris.Application) {
 	app.Get("/push", middlewares.PushNode)
 	app.Get("/pop", middlewares.PopNode)
+	app.Get("/read", middlewares.Read)
 }
