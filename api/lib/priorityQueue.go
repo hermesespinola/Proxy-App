@@ -1,7 +1,5 @@
 package lib
 
-import "fmt"
-
 // Node must implement the Greater method to be able
 // to order our priority queue
 type Node interface {
@@ -75,7 +73,6 @@ func (queue BHeap) siftDown(i int) {
 	n := len(queue)
 	for {
 		left, right := 2*i+1, 2*i+2
-		fmt.Println("[siftDown]", i, left, right)
 		if left >= n {
 			// We already are at the last level of the three
 			break

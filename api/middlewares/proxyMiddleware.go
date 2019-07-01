@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/json"
 	"log"
 	"math/rand"
 	"os"
@@ -16,33 +16,38 @@ import (
 
 var repoHeap lib.PriorityQueue = lib.BHeap{}
 
-type repoNode struct {
-	Domain   string
-	Weight   int
-	Priority int
+// RepoNode is a node in the heap
+type RepoNode struct {
+	Domain   string `json:"domain,omitempty"`
+	Weight   int    `json:"weight,omitempty"`
+	Priority int    `json:"priority,omitempty"`
 }
 
-// Implement lib.Node for repoNode
-func (node repoNode) Greater(that interface{}) bool {
-	if v, ok := that.(repoNode); ok {
-		return node.Weight > v.Weight || node.Priority > v.Priority
+// Value returns the priority value of the node
+func (node RepoNode) Value() float64 {
+	return float64(node.Weight) * float64(node.Priority) / 2.0
+}
+
+// Greater Implement lib.Node for RepoNode
+func (node RepoNode) Greater(that interface{}) bool {
+	if v, ok := that.(RepoNode); ok {
+		return node.Value() > v.Value()
 	}
 	return false
 }
 
 func readData() {
-	path, _ := filepath.Abs("")
-	file, err := os.Open(path + "/api/middlewares/domain.txt")
+	path, _ := filepath.Abs("api/middlewares/domain.txt")
+	file, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-	currentNode := repoNode{}
+	currentNode := RepoNode{}
 	for scanner.Scan() {
 		if scanner.Text() == "" {
 			repoHeap = repoHeap.Insert(currentNode)
-			currentNode = repoNode{}
 			continue
 		}
 		result := strings.SplitN(scanner.Text(), ":", 2)
@@ -59,21 +64,37 @@ func readData() {
 			currentNode.Domain = result[0]
 		}
 	}
+	if currentNode.Domain != "" {
+		repoHeap = repoHeap.Insert(currentNode)
+	}
+}
+
+var domains = []string{"alpha", "omega", "beta"}
+
+func contains(arr []string, element string) bool {
+	for _, val := range arr {
+		if val == element {
+			return true
+		}
+	}
+	return false
 }
 
 // PushNode is the middleware for our Proxy
 func PushNode(c iris.Context) {
 	domain := c.GetHeader("domain")
+	if !contains(domains, domain) {
+		c.JSON(iris.Map{"status": "domain error"})
+		return
+	}
 	readData()
-	newNode := repoNode{domain, rand.Intn(100), rand.Intn(100)}
+	newNode := RepoNode{domain, rand.Intn(100), rand.Intn(100)}
 	repoHeap = repoHeap.Insert(newNode)
-	nodeStr := fmt.Sprintf("%+v", repoNode(newNode))
-	queueStr := fmt.Sprintf("%+v", repoHeap)
+	nodeStr, _ := json.Marshal(newNode)
 	c.JSON(iris.Map{
-		"result": "ok",
+		"status": "ok",
 		"domain": domain,
-		"new":    nodeStr,
-		"queue":  queueStr,
+		"new":    string(nodeStr),
 	})
 }
 
@@ -81,24 +102,22 @@ func PushNode(c iris.Context) {
 func PopNode(c iris.Context) {
 	var node lib.Node
 	repoHeap, node = repoHeap.Pop()
-	queueStr := fmt.Sprintf("%+v", repoHeap)
-	nodeStr := ""
-	if v, ok := node.(repoNode); ok {
-		nodeStr = fmt.Sprintf("%+v", v)
+	var nodeStr []byte
+	if v, ok := node.(RepoNode); ok {
+		nodeStr, _ = json.Marshal(v)
 	}
 	c.JSON(iris.Map{
-		"result": "ok",
-		"poped":  nodeStr,
-		"queue":  queueStr,
+		"status": "ok",
+		"popped": string(nodeStr),
 	})
 }
 
 // Read is a handler that reads from file
 func Read(c iris.Context) {
 	readData()
-	queueStr := fmt.Sprintf("%+v", repoHeap)
+	queueStr, _ := json.Marshal(repoHeap)
 	c.JSON(iris.Map{
-		"result": "ok",
-		"queue":  queueStr,
+		"status": "ok",
+		"queue":  string(queueStr),
 	})
 }
